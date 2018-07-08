@@ -1,0 +1,13 @@
+Cargo.lock
+.bundle/
+.yardoc
+_yardoc/
+coverage/
+doc/
+pkg/
+spec/reports/
+tmp/
+target/
+**/*.rs.bk
+**/*.swp
+**/*.gem
