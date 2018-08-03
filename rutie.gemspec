@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = 'rutie'
-  spec.version       = '0.0.2'
+  spec.version       = '0.0.3'
   spec.authors       = ['Daniel P. Clark']
   spec.email         = ['6ftdan@gmail.com']
   spec.summary       = 'Rutie helper methods.'

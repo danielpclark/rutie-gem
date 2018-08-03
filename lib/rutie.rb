@@ -9,23 +9,23 @@ class Rutie
     @full_lib_path = opts.fetch(:lib_path) { nil }
   end
 
-  def ffi_library
+  def ffi_library(dir)
     file = [ @lib_prefix, @project_name, '.', @lib_suffix ]
 
-    File.join(lib_path, file.join())
+    File.join(lib_path(dir), file.join())
   end
 
-  def init(c_init_method_name)
+  def init(c_init_method_name, dir)
     require 'fiddle'
 
-    Fiddle::Function.new(Fiddle.dlopen(ffi_library)[c_init_method_name], [], Fiddle::TYPE_VOIDP).call
+    Fiddle::Function.new(Fiddle.dlopen(ffi_library dir)[c_init_method_name], [], Fiddle::TYPE_VOIDP).call
   end
 
   private
-  def lib_path
+  def lib_path(dir)
     path = @full_lib_path || "../target/#{@release}"
 
-    File.expand_path(path, __dir__)
+    File.expand_path(path, dir)
   end
 
   def set_prefix
