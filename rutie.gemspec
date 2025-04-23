@@ -13,4 +13,6 @@ Gem::Specification.new do |spec|
   spec.license       = 'MIT'
 
   spec.files         = %w[rutie.gemspec lib/rutie.rb LICENSE]
+
+  spec.add_runtime_dependency 'fiddle', '~> 1.0'
 end
