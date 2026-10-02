@@ -1,4 +1,11 @@
 class Rutie
+  # Raised by #init when the compiled Rust library is not where Rutie looks for
+  # it. A LoadError, so code that rescues LoadError keeps working.
+  class LibraryNotFound < LoadError; end
+
+  # Raised by #init when the library has no function with the init name.
+  class InitFunctionNotFound < LoadError; end
+
   def initialize(project_name, **opts)
     @os = opts.fetch(:os) { nil } # for testing purposes
 
@@ -9,23 +16,68 @@ class Rutie
     @full_lib_path = opts.fetch(:lib_path) { nil }
   end
 
+  # The path of the compiled library. With no `lib_path` option, Rutie looks in
+  # `$CARGO_TARGET_DIR/<release>` when that variable is set, then in
+  # `../target/<release>` relative to `dir`, and returns the first that holds
+  # the library (or the first candidate when none does).
   def ffi_library(dir)
-    file = [ @lib_prefix, @project_name, '.', @lib_suffix ]
+    candidates = library_candidates(dir)
 
-    File.join(lib_path(dir), file.join())
+    candidates.find { |path| File.exist?(path) } || candidates.first
   end
 
-  def init(c_init_method_name, dir)
+  # Loads the compiled Rust library and calls its init function, which defaults
+  # to `Init_<project_name>`:
+  #
+  #   Rutie.new(:my_ext).init __dir__
+  #   Rutie.new(:my_ext).init 'Init_my_ext', __dir__
+  def init(c_init_method_name = "Init_#{@project_name}", dir)
+    library = ffi_library(dir)
+    raise LibraryNotFound, library_not_found_message(dir) unless File.exist?(library)
+
     require 'fiddle'
 
-    Fiddle::Function.new(Fiddle.dlopen(ffi_library dir)[c_init_method_name], [], Fiddle::TYPE_VOIDP).call
+    handle = Fiddle.dlopen(library)
+    function =
+      begin
+        handle[c_init_method_name]
+      rescue Fiddle::DLError
+        raise InitFunctionNotFound, init_not_found_message(library, c_init_method_name)
+      end
+
+    Fiddle::Function.new(function, [], Fiddle::TYPE_VOIDP).call
   end
 
   private
-  def lib_path(dir)
-    path = @full_lib_path || "../target/#{@release}"
+  def library_file
+    [ @lib_prefix, @project_name, '.', @lib_suffix ].join
+  end
 
-    File.expand_path(path, dir)
+  def library_candidates(dir)
+    file = library_file
+
+    return [File.join(File.expand_path(@full_lib_path, dir), file)] if @full_lib_path
+
+    candidates = []
+    target_dir = ENV['CARGO_TARGET_DIR']
+    # Cargo resolves a relative CARGO_TARGET_DIR against the working directory.
+    candidates << File.join(File.expand_path(@release, target_dir), file) unless target_dir.nil? || target_dir.empty?
+    candidates << File.join(File.expand_path("../target/#{@release}", dir), file)
+    candidates.uniq
+  end
+
+  def library_not_found_message(dir)
+    profile = @release == 'release' ? ' --release' : ''
+
+    "Rutie could not find the compiled library for #{@project_name}. " \
+      "Looked for: #{library_candidates(dir).join(', ')}. " \
+      "Build it with `cargo build#{profile}` (see Rutie::RakeTask), " \
+      "or pass `lib_path:` to Rutie.new."
+  end
+
+  def init_not_found_message(library, name)
+    "#{library} has no function #{name}. Define it in Rust as " \
+      "`#[no_mangle] pub extern \"C\" fn #{name}()`, or pass its name to Rutie#init."
   end
 
   def set_prefix
@@ -66,10 +118,12 @@ class Rutie
     def to_str
       @name
     end
+    alias to_s to_str
 
     private
+    # A Cargo library name: snake_case, and digits after the first character.
     def valid_name?(project)
-      project.chars.all? {|c| c[/[a-z_]/] }
+      project.match?(/\A[a-z_][a-z0-9_]*\z/)
     end
 
     class InvalidProjectName < StandardError

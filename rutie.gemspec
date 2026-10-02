@@ -12,5 +12,9 @@ Gem::Specification.new do |spec|
   spec.homepage      = 'https://github.com/danielpclark/rutie'
   spec.license       = 'MIT'
 
-  spec.files         = %w[rutie.gemspec lib/rutie.rb LICENSE]
+  spec.files         = %w[rutie.gemspec lib/rutie.rb lib/rutie/rake_task.rb LICENSE]
+
+  # Rutie#init loads the extension with Fiddle, a bundled gem rather than a
+  # default gem since Ruby 4.0, so Bundler needs it declared.
+  spec.add_dependency 'fiddle'
 end
