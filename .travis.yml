@@ -1,8 +1,0 @@
-language: ruby
-os:
-- linux
-- osx
-rvm:
-- 2.3.7
-- 2.4.4
-- 2.5.1
