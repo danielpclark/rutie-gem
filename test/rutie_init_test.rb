@@ -13,7 +13,9 @@ class RutieInitTest < Minitest::Test
 
   def teardown
     ENV['CARGO_TARGET_DIR'] = @saved_target_dir if @saved_target_dir
-    FileUtils.remove_entry(@dir)
+    # Windows can't delete a library that is still loaded, and a loaded
+    # library stays loaded, so leave what can't be removed behind.
+    FileUtils.rm_rf(@dir)
   end
 
   def test_missing_library_raises_load_error_naming_the_build_command
